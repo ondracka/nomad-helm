@@ -1,0 +1,15 @@
+dependencies:
+- name: rabbitmq
+  repository: https://charts.bitnami.com/bitnami
+  version: 11.2.2
+- name: jupyterhub
+  repository: https://jupyterhub.github.io/helm-chart/
+  version: 1.2.0
+- name: elasticsearch
+  repository: https://helm.elastic.co
+  version: 7.17.1
+- name: mongodb
+  repository: https://charts.bitnami.com/bitnami
+  version: 14.0.2
+digest: sha256:e7a36c2519a3e8a494ee9fcbc0d8528d53ee02ca9ce0c5d5adb57c9c84de2b54
+generated: "2023-10-09T14:36:57.722363523+02:00"

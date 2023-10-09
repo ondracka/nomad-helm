@@ -1,0 +1,393 @@
+## Default values for nomad@FAIRDI
+version:
+  isTest: false
+  isBeta: false
+  usesBetaData: false
+  # officialUrl: 'https://nomad-lab.eu/prod/v1/gui'
+
+meta:
+  service: 'app'
+  homepage: 'https://nomad-test.dyn.cloud.e-infra.cz/fairdi/nomad/latest/gui'
+  source_url: 'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-FAIR'
+  maintainer_email: 'markus.scheidgen@physik.hu-berlin.de'
+
+## Everything concerning the container images to be used
+image:
+  ## The kubernetes docker-registry secret that can be used to access the registry
+  #  with the container image in it.
+  #  It can be created via:
+  #    kubectl create secret docker-registry gitlab-mpcdf --docker-server=gitlab-registry.mpcdf.mpg.de --docker-username=<your-user-name > --docker-password=<yourpass> --docker-email=<email>
+  secret: gitlab-mpcdf
+
+  ## The docker container image name without tag
+  name: gitlab-registry.mpcdf.mpg.de/nomad-lab/nomad-fair
+  ## The docker container image tag
+  tag: latest
+  pullPolicy: IfNotPresent
+
+## Ingress can be unable to provide gui and api access through kubernetes ingress (only k8s 1.18+)
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: '32g'
+    nginx.ingress.kubernetes.io/proxy-request-buffering: 'off'
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '10'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    kubernetes.io/tls-acme: 'true'
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+
+  hosts:
+    - 'nomad-test.dyn.cloud.e-infra.cz'
+
+  tls:
+    - hosts:
+        - 'nomad-test.dyn.cloud.e-infra.cz'
+      secretName: nomad-test-dyn-cloud-e-infra-cz-tls
+
+## Everything concerning the nomad app
+app:
+  replicas: 1
+  ## Number of uvicorn worker.
+  worker: 4
+  console_loglevel: INFO
+  logstash_loglevel: INFO
+  # nomadNodeType: 'public'
+
+## Everything concerning the nomad api
+api:
+  ## Secret used as cryptographic seed
+  secret: 'defaultApiSecret'
+  ## Limit of unpublished uploads per user, except admin user
+  uploadLimit: 10
+
+## Everything concerning the nomad worker
+worker:
+  replicas: 1
+  # request and limit in GB, good prod sizes are 64, 420
+  memrequest: 8
+  memlimit: 32
+  maxTasksPerChild: 128
+  console_loglevel: ERROR
+  logstash_loglevel: INFO
+  ## There are two routing modes "queue" and "worker". The "queue" routing will use a general
+  # task queue and spread calc processing task over worker instances. The "worker" routing
+  # will send all tasks related to an upload to the same worker
+  routing: 'queue'
+  # nomadNodeType: 'worker'
+  timeout: 7200
+  acks_late: false
+
+## Everthing concerning the nomad gui
+gui:
+  replicas: 1
+  ## This variable is used in the GUI to show or hide additional information
+  debug: false
+  ## automatically gz based on header
+  gzip: true
+  ## configuration for the interface, menus, options, etc.
+  config: {}
+
+encyclopedia:
+  ## enable links to the 'new' encyclopedia
+  enabled: true
+
+## Everything concerning the nginx that serves the gui, proxies the api
+#  It is run via NodePort service
+proxy:
+  # Set a nodePort to create a NodePort service instead of ClusterIP. Also set a nodeIP for the externalIP.
+  # nodePort: 30001
+  # nodeIP:
+  nodeSelector: {}
+  timeout: 120
+  editTimeout: 1800
+  external:
+    host: 'nomad-test.dyn.cloud.e-infra.cz'
+    port: 443
+    # empty path or '/' does not work
+    path: '/fairdi/nomad/latest'
+    https: true
+
+## configuration of the chart dependency for rabbitmq
+rabbitmq:
+  persistence:
+    enabled: true
+    storageClass: nfs-csi
+  # nodeSelector:
+  #   nomadtype: public
+  image.pullSecrets: nil
+  auth:
+    username: rabbitmq
+    password: rabbitmq
+    erlangCookie: SWQOKODSQALRPCLNMEQG
+  podSecurityContext:
+    fsGroupChangePolicy: OnRootMismatch
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    capabilities:
+      drop:
+        - ALL
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1000
+
+## A common name/prefix for all dbs and indices.
+dbname: fairdi_nomad_latest
+
+## Definition of the storage to be used for the persistent volumes
+dataStorage:
+  size: 2000Gi
+  storageClass: nfs-csi
+
+## Everything concerning mongodb
+mongo:
+  host: nomad-mongo
+  port: 27017
+  auth:
+    enabled: false
+  volumePermissions:
+    enabled: false
+  persistence:
+    storageClass: nfs-csi
+
+## Everything concerning elasticsearch
+elastic:
+  httpPort: 9200
+  transportPort: 9300
+  timeout: 60
+  bulkTimeout: 600
+  bulkSize: 1000
+  entriesPerMaterialCap: 1000
+  persistence:
+    enabled: true
+  volumeClaimTemplate:
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: 8Gi
+    storageClassName: nfs-csi
+
+  masterService: elasticserach-master-service
+  secretRef: elasticsearch-master-credentials
+  esConfig:
+    elasticsearch.yml: |
+      node.store.allow_mmap: false
+      index.store.type: niofs
+
+  podSecurityContext:
+    fsGroupChangePolicy: OnRootMismatch
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  sysctlInitContainer:
+    enabled: false
+
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    # readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1000
+
+logstash:
+  enabled: true
+  port: 5000
+  host: nomad-flink-01.esc
+
+kibana:
+  port: 5601
+  host: nomad-flink-01.esc
+
+mail:
+  enabled: false
+  host: 'localhost'
+  port: 25
+  from: 'support@nomad-lab.eu'
+
+client:
+  username: admin
+
+keycloak:
+  serverExternalUrl: 'https://nomad-lab.eu/fairdi/keycloak/auth/'
+  serverUrl: 'https://nomad-lab.eu/keycloak/auth/'
+  realmName: 'fairdi_nomad_test'
+  username: 'admin'
+  clientId: 'nomad_public'
+  guiClientId: 'nomad_public'
+  admin_user_id: '00000000-0000-0000-0000-000000000000'
+
+## Everything concerning the data that is used by the service
+volumes:
+  prefixSize: 1
+  public: /nomad/fairdi/latest/fs/public
+  staging: /nomad/fairdi/latest/fs/staging
+  north_home: /nomad/fairdi/latest/fs/north/users
+  tmp: /nomad/fairdi/latest/fs/tmp
+  nomad: /nomad
+
+springerDbPath: /nomad/fairdi/db/data/springer.msg
+
+reprocess:
+  rematchPublished: true
+  reprocessExistingEntries: true
+  useOriginalParser: false
+  addMatchedEntriesToPublished: false
+  deleteUnmatchedPublishedEntries: false
+  indexIndividualEntries: false
+
+process:
+  reuseParser: true
+  indexMaterials: true
+  rfc3161_skip_published: false
+
+datacite:
+  enabled: false
+  prefix: '10.17172'
+
+services:
+  aitoolkit:
+    ## enable aitoolkit references
+    enabled: false
+
+north:
+  enabled: false
+  hubServiceApiToken: 'secret-token'
+
+jupyterhub:
+  debug:
+    enabled: false
+  # fullnameOverride: null
+  # nameOverride: "north"
+  proxy:
+    service:
+      type: ClusterIP
+  singleuser:
+    image:
+      pullPolicy: 'Always'
+    storage:
+      type: none
+  hub:
+    extraEnv:
+      NOMAD_NORTH_HUB_SERVICE_API_TOKEN:
+        valueFrom:
+          secretKeyRef:
+            name: nomad-hub-service-api-token
+            key: token
+    allowNamedServers: true
+    shutdownOnLogout: true
+    config:
+      JupyterHub:
+        authenticator_class: generic-oauth
+      Authenticator:
+        auto_login: true
+        enable_auth_state: true
+      GenericOAuthenticator:
+        client_id: nomad_public
+        oauth_callback_url:
+        authorize_url: https://nomad-lab.eu/fairdi/keycloak/auth/realms/fairdi_nomad_test/protocol/openid-connect/auth
+        token_url: https://nomad-lab.eu/fairdi/keycloak/auth/realms/fairdi_nomad_test/protocol/openid-connect/token
+        userdata_url: https://nomad-lab.eu/fairdi/keycloak/auth/realms/fairdi_nomad_test/protocol/openid-connect/userinfo
+        login_service: keycloak
+        username_key: preferred_username
+        userdata_params:
+          state: state
+    extraConfig:
+      01-prespawn-hook.py: |
+        import os
+        import requests
+        import asyncio
+
+        hub_service_api_token = os.getenv('NOMAD_NORTH_HUB_SERVICE_API_TOKEN')
+
+        # configure nomad service
+        c.JupyterHub.services = [
+            {
+                "name": "nomad-service",
+                "admin": True,
+                "api_token": hub_service_api_token,
+            }
+        ]
+
+        async def pre_spawn_hook(spawner):
+            await spawner.load_user_options()
+            username = spawner.user.name
+
+            spawner.log.info(f"username: {username}")
+            spawner.log.debug(f'Configuring spawner for named server {spawner.name}')
+
+            if spawner.handler.current_user.name != 'nomad-service':
+                # Do nothing, will only launch the default image with no volumes.
+                # Only the nomad-service can launch specialized tools with mounted volumes
+                if spawner.name:
+                    spawner.log.error(f'The {spawner.name} server is not allowed to start this way, raise an error')
+                    raise NotImplementedError('Only the nomad-service can launch specialized tools.')
+                return
+
+            user_home = spawner.user_options.get('user_home')
+            spawner.log.info(f"user_home: {user_home}")
+            if user_home:
+                spawner.volumes.append({
+                    'name': 'user-home',
+                    'hostPath': {'path': user_home['host_path']}
+                })
+                spawner.volume_mounts.append({
+                    'name': 'user-home',
+                    'mountPath': user_home['mount_path'],
+                    'readOnly': False
+                })
+
+            uploads = spawner.user_options.get('uploads', [])
+            spawner.log.info(f"uploads: {uploads}")
+            for (i, upload) in enumerate(uploads):
+                spawner.volumes.append({
+                    'name': f"uploads-{i}",
+                    'hostPath': {'path': upload['host_path']}
+                })
+                spawner.volume_mounts.append({
+                    'name': f"uploads-{i}",
+                    'mountPath': upload['mount_path'],
+                    'readOnly': False
+                })
+
+            environment = spawner.user_options.get('environment', {})
+            spawner.environment.update(environment)
+
+            tool = spawner.user_options.get('tool')
+            if tool:
+                spawner.image = tool.get('image')
+                spawner.cmd = tool.get('cmd')
+
+                # Workaround for webtop based images (no connection to jupyterhub itself)
+                if tool.get('privileged'):
+                    spawner.privileged = True
+                    spawner.uid = 0
+
+        c.Spawner.pre_spawn_hook = pre_spawn_hook
+
+  cull:
+    enabled: true
+    timeout: 3600
+    every: 600
+    removeNamedServers: true
+  prePuller:
+    hook:
+      enabled: true
+      image:
+        pullPolicy: 'Always'
+    continuous:
+      enabled: false
+  scheduling:
+    userScheduler:
+      enabled: false
+    podPriority:
+      enabled: false
+    userPlaceholder:
+      enabled: false
+      replicas: 0

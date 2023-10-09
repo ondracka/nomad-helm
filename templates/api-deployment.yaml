@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nomad.fullname" . }}-app-uvicorn-log-config
+  labels:
+    app.kubernetes.io/name: {{ include "nomad.name" . }}-app-uvicorn-log-config
+    helm.sh/chart: {{ include "nomad.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  uvicorn.log.conf: |
+    [loggers]
+    keys=root, uvicorn.access
+
+    [handlers]
+    keys=console, logstash
+
+    [formatters]
+    keys=generic, logstash
+
+    [logger_root]
+    level=INFO
+    handlers=console, logstash
+
+    [logger_uvicorn.access]
+    level=INFO
+    handlers=console, logstash
+    qualname=uvicorn.access
+
+    [handler_console]
+    class=StreamHandler
+    formatter=generic
+    args=(sys.stdout, )
+
+    [handler_logstash]
+    class=nomad.utils.structlogging.LogstashHandler
+    formatter=logstash
+
+    [formatter_generic]
+    format=%(asctime)s [%(process)d] [%(levelname)s] %(message)s
+    datefmt=%Y-%m-%d %H:%M:%S
+    class=logging.Formatter
+
+    [formatter_logstash]
+    class=nomad.utils.structlogging.LogstashFormatter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nomad.fullname" . }}-app
+  labels:
+    app.kubernetes.io/name: {{ include "nomad.name" . }}-app
+    helm.sh/chart: {{ include "nomad.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "nomad.name" . }}-app
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "nomad.name" . }}-app
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      {{ if .Values.roll }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+      {{ end }}
+    spec:
+      securityContext:
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: {{ include "nomad.name" . }}-app
+        image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - mountPath: /app/nomad.yaml
+          name: nomad-conf
+          subPath: nomad.yaml
+        - mountPath: /app/uvicorn.log.conf
+          name: uvicorn-log-conf
+          subPath: uvicorn.log.conf
+        - mountPath: /app/.volumes/fs/public
+          name: data-volume
+          subPath: public
+        - mountPath: /app/.volumes/fs/staging
+          name: data-volume
+          subPath: staging
+        - mountPath: /app/.volumes/fs/north/users
+          name: data-volume
+          subPath: north-home
+        - mountPath: /nomad
+          name: data-volume
+          subPath: nomad
+        env:
+        - name: NOMAD_META_SERVICE
+          value: "app"
+        - name: NOMAD_CONSOLE_LOGLEVEL
+          value: "{{ .Values.app.console_loglevel }}"
+        - name: NOMAD_LOGSTASH_LEVEL
+          value: "{{ .Values.app.logstash_loglevel }}"
+       {{ if .Values.api.apiSecret }}
+        - name: NOMAD_SERVICES_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.api.apiSecret }}
+              key: password
+        {{ end }}
+        {{ if .Values.keycloak.clientSecret }}
+        - name: NOMAD_KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.keycloak.clientSecret }}
+              key: password
+        {{ end }}
+        {{ if .Values.client.passwordSecret }}
+        - name: NOMAD_CLIENT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.client.passwordSecret }}
+              key: password
+        {{ end }}
+        {{ if .Values.keycloak.passwordSecret }}
+        - name: NOMAD_KEYCLOAK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.keycloak.passwordSecret }}
+              key: password
+        {{ end }}
+        {{ if .Values.datacite.secret }}
+        - name: NOMAD_DATACITE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.datacite.secret }}
+              key: password
+        - name: NOMAD_DATACITE_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.datacite.secret }}
+              key: user
+        {{ end }}
+        - name: NOMAD_MONGO_PORT
+          value: "{{ .Values.mongo.port }}"
+        {{ if .Values.north.hubServiceApiTokenSecret }}
+        - name: NOMAD_NORTH_HUB_SERVICE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.north.hubServiceApiTokenSecret }}
+              key: token
+        {{ end }}
+        command: ["/bin/sh", "run.sh", "--log-config", "uvicorn.log.conf", "--workers", "{{ .Values.app.worker }}"]
+        livenessProbe:
+          httpGet:
+            path: "{{ .Values.proxy.external.path }}/alive"
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 30
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: "{{ .Values.proxy.external.path }}/alive"
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 30
+          failureThreshold: 30
+        startupProbe:
+          httpGet:
+            path: "{{ .Values.proxy.external.path }}/alive"
+            port: 8000
+          failureThreshold: 30
+          periodSeconds: 10
+
+      {{ if .Values.app.nomadNodeType }}
+      nodeSelector:
+        nomadtype: {{ .Values.app.nomadNodeType }}
+      {{ end }}
+      imagePullSecrets:
+      - name: {{ .Values.image.secret }}
+      volumes:
+      - name: uvicorn-log-conf
+        configMap:
+          name: {{ include "nomad.fullname" . }}-app-uvicorn-log-config
+      - name: app-run-script
+        configMap:
+          name: {{ include "nomad.fullname" . }}-app-run-script
+      - name: nomad-conf
+        configMap:
+          name: {{ include "nomad.fullname" . }}-configmap
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: {{ include "nomad.fullname" . }}-data

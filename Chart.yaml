@@ -1,0 +1,21 @@
+apiVersion: v2
+name: nomad
+description: A Helm chart for Kubernetes that only runs nomad services and uses externally hosted databases.
+type: application
+version: 0.0.2
+dependencies:
+  - name: rabbitmq
+    version: '11.2.2'
+    repository: 'https://charts.bitnami.com/bitnami'
+  - name: jupyterhub
+    version: '1.2.0'
+    repository: 'https://jupyterhub.github.io/helm-chart/'
+    condition: north.enabled
+  - name: elasticsearch
+    version: '7.17.1'
+    repository: 'https://helm.elastic.co'
+    alias: 'elastic'
+  - name: mongodb
+    version: '14.0.2'
+    repository: 'https://charts.bitnami.com/bitnami'
+    alias: 'mongo'

@@ -1,0 +1,11 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "nomad.fullname" . }}-data
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.dataStorage.size }}
+  storageClassName: {{ .Values.dataStorage.storageClass }}
