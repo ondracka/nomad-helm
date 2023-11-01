@@ -121,4 +121,4 @@ spec:
           name: {{ include "nomad.fullname" . }}-configmap
       - name: data-volume
         persistentVolumeClaim:
-          claimName: {{ include "nomad.fullname" . }}-data
+          claimName: pvc-nomad

@@ -151,7 +151,8 @@ mongo:
   volumePermissions:
     enabled: false
   persistence:
-    storageClass: nfs-csi
+    enabled: true
+    existingClaim: pvdlab-oasis-mongo
 
 ## Everything concerning elasticsearch
 elastic:
