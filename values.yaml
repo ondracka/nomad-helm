@@ -7,7 +7,7 @@ version:
 
 meta:
   service: 'app'
-  homepage: 'https://nomad-test.dyn.cloud.e-infra.cz/fairdi/nomad/latest/gui'
+  homepage: 'https://pvdlab.dyn.cloud.e-infra.cz/oasis'
   source_url: 'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-FAIR'
   maintainer_email: 'markus.scheidgen@physik.hu-berlin.de'
 
@@ -39,12 +39,12 @@ ingress:
     cert-manager.io/cluster-issuer: 'letsencrypt-prod'
 
   hosts:
-    - 'nomad-test.dyn.cloud.e-infra.cz'
+    - 'pvdlab.dyn.cloud.e-infra.cz'
 
   tls:
     - hosts:
-        - 'nomad-test.dyn.cloud.e-infra.cz'
-      secretName: nomad-test-dyn-cloud-e-infra-cz-tls
+        - 'pvdlab.dyn.cloud.e-infra.cz'
+      secretName: pvdlab-dyn-cloud-e-infra-cz-tls
 
 ## Everything concerning the nomad app
 app:
@@ -103,10 +103,10 @@ proxy:
   timeout: 120
   editTimeout: 1800
   external:
-    host: 'nomad-test.dyn.cloud.e-infra.cz'
+    host: 'pvdlab.dyn.cloud.e-infra.cz'
     port: 443
     # empty path or '/' does not work
-    path: '/fairdi/nomad/latest'
+    path: '/oasis'
     https: true
 
 ## configuration of the chart dependency for rabbitmq
