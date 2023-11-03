@@ -9,7 +9,7 @@ meta:
   service: 'app'
   homepage: 'https://pvdlab.dyn.cloud.e-infra.cz/oasis'
   source_url: 'https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-FAIR'
-  maintainer_email: 'markus.scheidgen@physik.hu-berlin.de'
+  maintainer_email: 'pavel.ondracka@email.cz'
 
 ## Everything concerning the container images to be used
 image:
@@ -67,9 +67,10 @@ worker:
   replicas: 1
   # request and limit in GB, good prod sizes are 64, 420
   memrequest: 8
-  memlimit: 32
-  maxTasksPerChild: 128
-  console_loglevel: ERROR
+  memlimit: 48
+  processes: 6
+  maxTasksPerChild: 64
+  console_loglevel: INFO
   logstash_loglevel: INFO
   ## There are two routing modes "queue" and "worker". The "queue" routing will use a general
   # task queue and spread calc processing task over worker instances. The "worker" routing
