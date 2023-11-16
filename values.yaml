@@ -66,8 +66,8 @@ api:
 worker:
   replicas: 1
   # request and limit in GB, good prod sizes are 64, 420
-  memrequest: 8
-  memlimit: 48
+  # memrequest: 8
+  # memlimit: 32
   processes: 6
   maxTasksPerChild: 64
   console_loglevel: INFO

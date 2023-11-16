@@ -32,6 +32,8 @@ data:
       add_matched_entries_to_published:  {{ .Values.reprocess.addMatchedEntriesToPublished }}
       delete_unmatched_published_entries: {{ .Values.reprocess.deleteUnmatchedPublishedEntries }}
       index_individual_entries: {{ .Values.reprocess.indexIndividualEntries }}
+    normalize:
+      system_classification_with_clusters_threshold: 500
     fs:
       tmp: ".volumes/fs/staging/tmp"
       staging_external: {{ .Values.volumes.staging }}

@@ -57,6 +57,8 @@ spec:
           name: data-volume
           subPath: nomad
         env:
+        - name: OMP_NUM_THREADS
+          value: "2"
         - name: NOMAD_META_SERVICE
           value: "worker"
         - name: NOMAD_CONSOLE_LOG_LEVEL
@@ -98,8 +100,8 @@ spec:
             - -c
             - NOMAD_LOGSTASH_LEVEL=WARNING python -m celery -A nomad.processing status | grep "$(NOMAD_CELERY_NODE_NAME):.*OK"
           initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 20
+          periodSeconds: 120
+          timeoutSeconds: 120
         readinessProbe:
           exec:
             command:
@@ -107,8 +109,8 @@ spec:
             - -c
             - NOMAD_LOGSTASH_LEVEL=WARNING python -m celery -A nomad.processing status | grep "${NOMAD_CELERY_NODE_NAME}:.*OK"
           initialDelaySeconds: 20
-          periodSeconds: 30
-          timeoutSeconds: 40
+          periodSeconds: 120
+          timeoutSeconds: 120
       {{ if .Values.worker.nomadNodeType }}
       nodeSelector:
         nomadtype: {{ .Values.worker.nomadNodeType }}
