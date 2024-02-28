@@ -104,6 +104,8 @@ data:
     oasis:
       is_oasis: true
       uses_central_user_management: true
+      allowed_users:
+        - pavel.ondracka@email.cz
     # keycloak:
     #   server_url: "{{ .Values.keycloak.serverUrl }}"
     #   realm_name: "{{ .Values.keycloak.realmName }}"

@@ -23,7 +23,7 @@ image:
   name: gitlab-registry.mpcdf.mpg.de/nomad-lab/nomad-fair
   ## The docker container image tag
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 ## Ingress can be unable to provide gui and api access through kubernetes ingress (only k8s 1.18+)
 ingress:
