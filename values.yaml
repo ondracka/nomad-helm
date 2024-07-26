@@ -179,6 +179,7 @@ elastic:
     elasticsearch.yml: |
       node.store.allow_mmap: false
       index.store.type: niofs
+      cluster.routing.allocation.disk.threshold_enabled: false
 
   podSecurityContext:
     fsGroupChangePolicy: OnRootMismatch
