@@ -56,7 +56,6 @@ data:
       https: {{ .Values.proxy.external.https }}
       upload_limit: {{ .Values.api.uploadLimit }}
       admin_user_id: {{ .Values.keycloak.admin_user_id }}
-      aitoolkit_enabled: {{ .Values.services.aitoolkit.enabled }}
     rabbitmq:
       host: "{{ .Release.Name }}-rabbitmq"
     elastic:
